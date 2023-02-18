@@ -4,6 +4,7 @@ import random
 
 total = ''
 newgame = False
+set = False
 chapters = ['/rules - правила игры ',
             '/help - что делать ',
             '/newgame - новая игра ',
@@ -31,61 +32,78 @@ async def mes_help(message: types.Message):
     await message.answer('Перед началом игры введите /set и через пробел установите число конфет на столе. ' 
                         '\nХотите сыграть, введите /newgame')
     
+@dp.message_handler(commands=['set'])
+async def mes_set(message: types.Message):
+    global newgame
+    global total
+    global set
+    set = True
+    count = message.text.split()[1]
+    if newgame:
+        if count.isdigit():
+            total = int(count)
+            await message.answer(f'На столе теперь {total} конфет. Введите еще раз /newgame')
+                                
+        else:
+            await message.answer(f'{message.from_user.first_name}, напишите цифрами!')
+    else:
+        if set: 
+            await message.answer(f'{message.from_user.first_name}, нельзя менять правила во время игры!')
+    
 
 @dp.message_handler(commands=['newgame'])
 async def mes_newgame(message: types.Message):
     global newgame
     global lot
+    global set
     newgame = True
-    await message.answer('Игра началась, бросаем жребий!')
-    lot = random.randint(1, 2)
-    if lot == 1:
-        await message.answer(f'Выпало {lot}, {message.from_user.first_name}, твой первый ход, пиши сколько возьмешь конфет')
-    else:
-        await message.answer(f'Выпало {lot}, {message.from_user.first_name}, ты ходишь вторым')
-        await bot_move(message) 
-  
-
-
-@dp.message_handler(commands=['set'])
-async def mes_set(message: types.Message):
-    global newgame
-    global total
-    count = message.text.split()[1]
-    if not newgame:
-        if count.isdigit():
-            total = int(count)
-            await message.answer(f'На столе теперь {total} конфет')
+    if set:
+        await message.answer('Игра началась, бросаем жребий!')
+        lot = random.randint(1, 2)
+        if lot == 1:
+            await message.answer(f'Выпало {lot}, {message.from_user.first_name}, твой первый ход, пиши сколько возьмешь конфет')
         else:
-            await message.answer(f'{message.from_user.first_name}, напишите цифрами!')
-    else:
-        await message.answer(f'{message.from_user.first_name}, нельзя менять правила во время игры!')
-
+            await message.answer(f'Выпало {lot}, {message.from_user.first_name}, ты ходишь вторым')
+            await bot_move(message)
+    else: 
+        await message.answer('Установите число конфет на столе, используя команду /set пробел и число')
+    
+     
 @dp.message_handler()
 async def mes_all(message: types.Message):
     global newgame
     global total
+    global set
     if newgame:
-        if message.text.isdigit():
+        if message.text.isdigit() and 0 < int(message.text) < 29:
             total -= int(message.text)
             if total <= 0:
-                await message.answer(f'{message.from_user.first_name}, ты забрал последние конфеты и победил!')
+                await message.answer(f'{message.from_user.first_name}, поздравляю, ты забрал последние конфеты и победил!')
                 newgame = False
+                set = False
+                await message.answer('Перед новой игрой установите число конфет на столе, '
+                                    'используя /set и число через пробел!')
             else:
                 await message.answer(f'{message.from_user.first_name} взял {message.text} конфет, '
                                     f'на столе осталось {total}')
+                await bot_move(message)
+        else: 
+            await message.answer(f'{message.from_user.first_name}, за раз можно взять максимум 28 конфет!')
 
 
 async def bot_move(message: types.Message):
     global total
     global newgame
+    global set
     bottake = 0
     if 0 < total < 29:
         bottake = total
         total -= bottake
-        await message.answer(f'Бот взял {bottake} конфет. '
-                             f'На столе осталось {total} и бот одержал победу')
+        await message.answer(f'Бот взял последние {bottake} конфет и победил!!!')
         newgame = False
+        set = False
+        await message.answer('Перед новой игрой установите число конфет на столе, '
+                            'используя /set и число через пробел!')
     else:
         remainder = total%29
         bottake = remainder if remainder != 0 else 28
